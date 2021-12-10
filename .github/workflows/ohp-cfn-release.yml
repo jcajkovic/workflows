@@ -6,6 +6,9 @@ on:
       usermail:
         required: true
         type: string
+      cicd_automation_role_arn:
+        type: string
+        required: true
     secrets:
       github_repository_token:
         required: true
@@ -14,8 +17,6 @@ on:
       cicd_automation_aws_access_key_id:
         required: true
       cicd_automation_aws_secret_access_key:
-        required: true
-      cicd_automation_role_arn:
         required: true
       default_aws_region:
         required: true
