@@ -5,8 +5,13 @@ on:
     inputs:
       env:
         description: 'Environment type [dev, tst, acc, prd]'
-        type: string
+        type: choice
         required: true
+        options:
+        - dev
+        - tst
+        - acc
+        - prd
       customer:
         description: 'Customer identification'
         required: true

@@ -1,0 +1,73 @@
+name: close-cfn-release
+
+on:
+  workflow_call:
+    inputs:
+      useremail:
+        required: true
+        type: string
+    secrets:
+      github_repository_token:
+        required: true
+      github_packages_token:
+        required: true
+      cicd_automation_aws_access_key_id:
+        required: true
+      cicd_automation_aws_secret_access_key:
+        required: true
+      cicd_automation_role_arn:
+        required: true
+      default_aws_region:
+        required: true
+
+jobs:
+  semver-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.github_repository_token }}
+      - uses: ohpensource/platform-cicd/actions/git/generate-version-and-release-notes@2.0.1.0
+        name: semver & changelog
+        with:
+          user-email: ${{ inputs.useremail }}
+          user-name: "GitHub Actions"
+      - id: semver
+        run: echo "::set-output name=service-version::$(cat ./version.json | jq -r '.version')"
+    outputs:
+      service-version: ${{ steps.semver.outputs.service-version }}
+  cfn-release:
+    needs: semver-changelog
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ohpen/devopscli:main
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_packages_token }}
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Configure Git Credentials
+        uses: fusion-engineering/setup-git-credentials@v2
+        with:
+          credentials: ${{secrets.github_repository_token}}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.cicd_automation_aws_access_key_id }}
+          aws-secret-access-key: ${{ secrets.cicd_automation_aws_secret_access_key }}
+          aws-region: ${{ secrets.default_aws_region }}
+          role-to-assume: ${{ secrets.cicd_automation_role_arn }}
+          role-duration-seconds: 1200
+          role-session-name: cfn-release
+
+      - name: cfn-release
+        run: |
+          export PATH="${PATH}:/usr/bin/cloudcommons"
+
+          export LC_ALL=C.UTF-8
+          export LANG=C.UTF-8
+
+          devopscli cloudformation release --debug --path cloudformation --version ${{ needs.semver-changelog.outputs.service-version }} --branch ${GITHUB_REF##*/}

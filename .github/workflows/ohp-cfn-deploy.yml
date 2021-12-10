@@ -1,0 +1,103 @@
+# This is a Ohpen Close CFN Deploy workflow
+
+name: Cfn Deploy
+
+on:
+  workflow_call:
+    inputs:
+      project:
+        required: true
+        type: string
+      cfn-version:
+        description: 'Version of Cloudformation'
+        required: true
+        type: string
+      env:
+        type: choice
+        description: 'Environment type [dev, tst, acc, prd]'
+        required: true
+        options:
+        - dev
+        - tst
+        - acc
+        - prd
+      customer:
+        description: 'Customer identification'
+        required: true
+      s3path:
+        description: 'Defines a path on S3 bucket of CFN Template'
+        required: true
+        # default: 'cloudops-artifacts-522044537874/cloudops-close-vpc-cfn'
+    secrets:
+      github_repository_token:
+        required: true
+      github_packages_token:
+        required: true
+      cicd_automation_aws_access_key_id:
+        required: true
+      cicd_automation_aws_secret_access_key:
+        required: true
+      cicd_automation_role_arn:
+        required: true
+      default_aws_region:
+        required: true
+jobs:
+
+  cfn-deploy:
+    environment: ${{ inputs.env }}"
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ohpen/devopscli:main
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_packages_token }}
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Get account id
+        uses: KJ002/read-yaml@1.5
+        id: getaccountid
+        with:
+          file: 'params/${{inputs.customer}}/accountid.yml'
+          key-path: '["accountid"]'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.cicd_automation_aws_access_key_id }}
+          aws-secret-access-key: ${{ secrets.cicd_automation_aws_secret_access_key }}
+          aws-region: ${{ secrets.default_aws_region }}
+          role-to-assume: arn:aws:iam::${{ steps.getaccountid.outputs.data }}:role/${{ inputs.env }}-cicd-automation
+          role-duration-seconds: 1200
+          role-session-name: cfn-deploy
+
+      - name: cfn-deploy
+        run: |
+          export PATH="${PATH}:/usr/bin/cloudcommons"
+
+          export LC_ALL=C.UTF-8
+          export LANG=C.UTF-8
+
+          ENVIRONMENT="${{ inputs.env }}"
+
+          if [ "${{ inputs.env }}" = "tst" ]; then
+            ENVIRONMENT="test"
+          fi
+
+          if [ "${{ inputs.env }}" = "prd" ]; then
+            ENVIRONMENT="prod"
+          fi
+
+          devopscli cloudformation deploy \
+            --project "${{ inputs.project}}" \
+            --version "${{ inputs.cfn-version }}" \
+            --s3path "${{ inputs.s3path}}" \
+            --account "${{ steps.getaccountid.outputs.data }}" \
+            --environment "$ENVIRONMENT" \
+            --stack-name "$ENVIRONMENT-${{ inputs.project}}" \
+            --template-name "${{ inputs.project}}" \
+            --parameter-file "parameters" \
+            --parameter-path "params/${{inputs.customer}}/${{ inputs.env }}/${{inputs.project}}" \
+            --region "${{ secrets.default_aws_region }}" \
+            --approve-deploy \
+            --debug
