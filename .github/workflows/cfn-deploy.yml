@@ -1,0 +1,39 @@
+name: cfn-deploy-reusable
+
+on:
+  workflow_call:
+    inputs:
+      env:
+        type: choice
+        description: 'Environment type [dev, tst, acc, prd]'
+        required: true
+        options:
+        - dev
+        - tst
+        - acc
+        - prd
+      customer:
+        description: 'Customer identification'
+        required: true
+
+jobs:
+  cfn-deploy:
+    environment: ${{ inputs.env }}"
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ohpen/devopscli:main
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_packages_token }}
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Get account id
+        uses: KJ002/read-yaml@1.5
+        id: getaccountid
+        with:
+          file: 'params/${{inputs.customer}}/accountid.yml'
+          key-path: '["accountid"]'
+      - name: test
+        run: |
+          echo ${{ steps.getaccountid.outputs.data }}
