@@ -1,0 +1,29 @@
+name: Reusable workflow example
+
+on:
+  workflow_call:
+    inputs:
+      username:
+        required: true
+        type: string
+    secrets:
+      token:
+        required: true
+
+jobs:
+  semver-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.token}}
+      - uses: ohpensource/platform-cicd/actions/git/generate-version-and-release-notes@2.0.1.0
+        name: semver & changelog
+        with:
+          user-email: "gh-actions@softwarelab.com"
+          user-name: "GitHub Actions"
+      - id: semver
+        run: echo "::set-output name=service-version::$(cat ./version.json | jq -r '.version')"
+    outputs:
+      service-version: ${{ steps.semver.outputs.service-version }}
