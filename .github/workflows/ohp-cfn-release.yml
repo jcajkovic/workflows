@@ -3,7 +3,7 @@ name: close-cfn-release
 on:
   workflow_call:
     inputs:
-      useremail:
+      usermail:
         required: true
         type: string
     secrets:
@@ -31,7 +31,7 @@ jobs:
       - uses: ohpensource/platform-cicd/actions/git/generate-version-and-release-notes@2.0.1.0
         name: semver & changelog
         with:
-          user-email: ${{ inputs.useremail }}
+          user-email: ${{ inputs.usermail }}
           user-name: "GitHub Actions"
       - id: semver
         run: echo "::set-output name=service-version::$(cat ./version.json | jq -r '.version')"
