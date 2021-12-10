@@ -16,11 +16,6 @@ jobs:
   cfn-deploy:
     environment: ${{ inputs.env }}"
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ohpen/devopscli:main
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_packages_token }}
     steps:
       - uses: actions/checkout@v1
 
