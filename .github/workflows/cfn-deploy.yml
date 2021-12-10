@@ -5,10 +5,12 @@ on:
     inputs:
       env:
         description: 'Environment type [dev, tst, acc, prd]'
+        type: string
         required: true
       customer:
         description: 'Customer identification'
         required: true
+        type: string
 
 jobs:
   cfn-deploy:
